@@ -11,7 +11,7 @@ from typing import List
 
 #working directories
 BASE_DIR = os.path.dirname(os.path.abspath('__file__'))
-DATA_DIR = os.path.join(BASE_DIR, 'ml','data', 'raw')
+DATA_DIR = os.path.join(BASE_DIR,'data', 'raw')
 
 def get_all_urls(num_years: int) -> List[str]:
     '''

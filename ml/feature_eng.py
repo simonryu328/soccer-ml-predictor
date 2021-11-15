@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath('__file__'))
-DATA_DIR = os.path.join(BASE_DIR, 'ml','data', 'raw')
+DATA_DIR = os.path.join(BASE_DIR,'ml','data', 'raw')
 DATA_FEATURED_DIR = os.path.join(BASE_DIR, 'ml', 'data', 'featured')
 
 df = pd.read_csv(os.path.join(DATA_DIR, 'epl_matches.csv'))
@@ -34,7 +34,7 @@ cols_order = ['season', 'date', 'h_team', 'a_team', 'winner', 'h_score', 'a_scor
 df = df[cols_order]
 
 def create_season_stats(x):
-    season_df = df[(df.season == x.season) & (df.date <= x.date) & ((df.h_team.isin([x.h_team,x.a_team])) | (df.a_team.isin([x.h_team,x.a_team])))]
+    season_df = df[(df.season == x.season) & (df.date <= x.date)]
     h_df = season_df.groupby(['h_team', 'date']).sum()[['h_match_points', 'h_score', 'a_score']].reset_index()
     a_df = season_df.groupby(['a_team', 'date']).sum()[['a_match_points', 'a_score', 'h_score']].reset_index()
     h_df.columns = ['team', 'date','points', 'goals_for', 'goals_against']
@@ -61,20 +61,22 @@ def create_season_stats(x):
     ewm_points = [h_ewm_points, h_ewm_goals_for, h_ewm_goals_against, a_ewm_points, a_ewm_goals_for, a_ewm_goals_against]
     
     cum_df = full_df.groupby(['team']).sum()[['points', 'goals_for', 'goals_against']]
+    cum_df['standing'] = cum_df['points'].rank(ascending=False)
+    standings = [cum_df.loc[x.h_team].standing, cum_df.loc[x.a_team].standing]
     
     h_stat = [0,0,0]
     a_stat = [0,0,0]
     try:
-        h_stat = cum_df.loc[x.h_team].values
+        h_stat = cum_df.loc[x.h_team][['points', 'goals_for', 'goals_against']].values
     except:
         pass
     try:
-        a_stat = cum_df.loc[x.a_team].values
+        a_stat = cum_df.loc[x.a_team][['points', 'goals_for', 'goals_against']].values
     except:
         pass
     
-    return np.concatenate((h_stat, a_stat, ewm_points))
-
+    return np.concatenate((standings, h_stat, a_stat, ewm_points))
+    
 def create_vs_stats(x):
     # Get all games where two teams played against each other.
     vs_df = df[(df.date <= x.date) & 
@@ -89,8 +91,8 @@ def create_vs_stats(x):
                
     return [h_vs_winrate, a_vs_winrate]
 
-season_cols = ['ht_pts','ht_goals_for','ht_goals_against','at_pts','at_goals_for','at_goals_against','h_ewm_points', 
-               'h_ewm_goals_for', 'h_ewm_goals_against', 'a_ewm_points', 'a_ewm_goals_for', 'a_ewm_goals_against']
+season_cols = ['h_standing', 'a_standing', 'ht_pts','ht_goals_for','ht_goals_against','at_pts','at_goals_for','at_goals_against',
+               'h_ewm_points', 'h_ewm_goals_for', 'h_ewm_goals_against', 'a_ewm_points', 'a_ewm_goals_for', 'a_ewm_goals_against']
 vs_cols = ['h_vs_winrate', 'a_vs_winrate']
 
 featured_df = df.copy()
@@ -101,7 +103,3 @@ featured_df[vs_cols] = pd.DataFrame(
     featured_df.apply(lambda x: create_vs_stats(x), axis=1).to_list(), index=featured_df.index)
 
 featured_df.to_csv(os.path.join(DATA_FEATURED_DIR, 'epl_matches_featured.csv'), index=False)
-
-
-
-# df.to_csv(os.path.join(DATA_TRANSFOMRED_DIR, 'epl_matches_transformed.csv'), index=False)
